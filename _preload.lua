@@ -14,15 +14,15 @@ newoption {
 }
 
 newoption {
-    trigger = "unity-log",
-    description = "(Optional) Enable some extra debug logging for the unity builds.  This should"..
-                  "only be used for debugging purposes when opting into unity builds for a project."
+	trigger = "unity-log",
+	description = "(Optional) Enable some extra debug logging for the unity builds.  This should"..
+				  "only be used for debugging purposes when opting into unity builds for a project."
 }
 
 newoption {
-    trigger = "unity-log-filter",
+	trigger = "unity-log-filter",
 	value = "enabled",
-    description = "(Optional) Only show the log messages from the unity build for the given project"..
+	description = "(Optional) Only show the log messages from the unity build for the given project"..
 				  "names.  Multiple project names may be given separated by commas (no blank spaces"..
 				  "between project names).  This may also be the special value 'enabled' to only show"..
 				  "the log messages for projects that have opted into unity builds."
@@ -67,9 +67,9 @@ premake.api.register {
 -- the macro `NOMINMAX` and setting it to `1`.
 --
 premake.api.register {
-    name = "unitybuilddefines",
-    scope = "config",
-    kind = "table"
+	name = "unitybuilddefines",
+	scope = "config",
+	kind = "table"
 }
 
 -- Compilation unit extensions.

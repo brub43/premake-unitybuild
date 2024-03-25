@@ -31,20 +31,20 @@ premake.extensions.compilationunit = {
 --
 -- @returns No return value.
 function premake.extensions.compilationunit.debug_log(msg, prj)
-    -- the unity builds log output is not enabled -> nothing to do => fail.
-    if not _OPTIONS['unity-log'] then
-        return
-    end
+	-- the unity builds log output is not enabled -> nothing to do => fail.
+	if not _OPTIONS['unity-log'] then
+		return
+	end
 
-    -- an optional project object was passed in and the log filtering was enabled => make sure
-    --   this project was asked to emit log messages.
-    if prj ~= nil and type(_OPTIONS['unity-log-filter']) == 'string' then
+	-- an optional project object was passed in and the log filtering was enabled => make sure
+	--   this project was asked to emit log messages.
+	if prj ~= nil and type(_OPTIONS['unity-log-filter']) == 'string' then
 		if not (_OPTIONS['unity-log-filter']:find(prj['name']) or (prj.unitybuildenabled and _OPTIONS['unity-log-filter'] == 'enabled')) then
-            return
-        end
-    end
+			return
+		end
+	end
 
-    print("[unity] "..msg)
+	print("[unity] "..msg)
 end
 
 --
@@ -53,9 +53,9 @@ end
 --
 function premake.extensions.compilationunit.customBakeFiles(base, prj)
 
-    -- calculate whether the unity builds should be enabled at all.  This is a combination of
-    -- both whether the project has opted into unity builds and whether unity builds have been
-    -- enabled on the command line with the `--unity-build` option.
+	-- calculate whether the unity builds should be enabled at all.  This is a combination of
+	-- both whether the project has opted into unity builds and whether unity builds have been
+	-- enabled on the command line with the `--unity-build` option.
 	local unity_build_enabled = prj.unitybuildenabled and (_OPTIONS['unity-build'] ~= nil)
 	local cu = premake.extensions.compilationunit
 
@@ -71,17 +71,17 @@ function premake.extensions.compilationunit.customBakeFiles(base, prj)
 	-- this needs to take care of the case where the compilation units are generated in a folder from
 	-- the project (we need to skip them in this case to avoid recursively adding them each time we
 	-- run Premake.
-    cu.debug_log("processing the unity build for the project '"..prj['name'].."'", prj)
+	cu.debug_log("processing the unity build for the project '"..prj['name'].."'", prj)
 	cu.debug_log("unity builds are "..(unity_build_enabled and "ENABLED" or "DISABLED").." for the project '"..prj['name'].."'.", prj)
 	for cfg in project.eachconfig(prj) do
-        cu.debug_log("    processing the unity build for the config '"..cfg["shortname"].."'.", prj)
+		cu.debug_log("    processing the unity build for the config '"..cfg["shortname"].."'.", prj)
 
 		-- remove the previous compilation units
-        cu.debug_log("    removing existing unity build files.", prj)
+		cu.debug_log("    removing existing unity build files.", prj)
 		for i = #cfg.files, 1, -1 do
-            -- cu.debug_log("        "..i..") checking the file '"..cfg.files[i].."'.", prj)
+			-- cu.debug_log("        "..i..") checking the file '"..cfg.files[i].."'.", prj)
 			if cu.isCompilationUnit(cfg, cfg.files[i]) then
-                cu.debug_log("        "..i..") '"..cfg.files[i].."'", prj)
+				cu.debug_log("        "..i..") '"..cfg.files[i].."'", prj)
 				table.remove(cfg.files, i)
 			end
 		end
@@ -96,23 +96,23 @@ function premake.extensions.compilationunit.customBakeFiles(base, prj)
 			local sourceindexforcu = {}
 
 			-- store the list of files for a later building of the actual compilation unit files
-            cu.debug_log("    adding compilation units.", prj)
+			cu.debug_log("    adding compilation units.", prj)
 			for i = #cfg.files, 1, -1 do
 				local filename = cfg.files[i]
-                cu.debug_log("        checking the file '"..filename.."'.", prj)
+				cu.debug_log("        checking the file '"..filename.."'.", prj)
 				if cu.isIncludedInCompilationUnit(cfg, filename) == true then
-                    cu.debug_log("            adding the file '"..filename.."' under the config '"..tostring(cfg['shortname']).."' at index "..i, prj)
+					cu.debug_log("            adding the file '"..filename.."' under the config '"..tostring(cfg['shortname']).."' at index "..i, prj)
 					table.insert(cu.compilationunits[cfg], filename)
 					table.insert(sourceindexforcu, i)
 				end
 			end
-            cu.debug_log("    done adding compilation units.", prj)
+			cu.debug_log("    done adding compilation units.", prj)
 
 			-- remove the original source files from the project
 			if cfg.unitybuildfilesonly then
-                cu.debug_log("    removing the original source files from the project.", prj)
+				cu.debug_log("    removing the original source files from the project.", prj)
 				table.foreachi(sourceindexforcu, function(i)
-                    cu.debug_log("        removing the file '"..cfg.files[i].."'", prj)
+					cu.debug_log("        removing the file '"..cfg.files[i].."'", prj)
 					table.remove(cfg.files, i)
 				end)
 			end
@@ -120,32 +120,32 @@ function premake.extensions.compilationunit.customBakeFiles(base, prj)
 			-- store the compilation unit folder in the config
 			if cfg._compilationUnitDir == nil then
 				cfg._compilationUnitDir = cu.getCompilationUnitDir(cfg)
-                cu.debug_log("    storing the CU dir '"..cfg._compilationUnitDir.."' in the config.", prj)
+				cu.debug_log("    storing the CU dir '"..cfg._compilationUnitDir.."' in the config.", prj)
 			end
 
-            local count = 2
+			local count = 2
 
-            -- the compilation unit count was not specified for this project => attempt to
-            --   calculate a good count given how many eligible source files are present.
-            --   We'll try to make sure there are at least 5 source files built in each
-            --   unity build file, but we'll also cap it at 8 files.  If there are fewer
-            --   than 5 source files in the project, this will simply be clamped to 1.
+			-- the compilation unit count was not specified for this project => attempt to
+			--   calculate a good count given how many eligible source files are present.
+			--   We'll try to make sure there are at least 5 source files built in each
+			--   unity build file, but we'll also cap it at 8 files.  If there are fewer
+			--   than 5 source files in the project, this will simply be clamped to 1.
 			if prj.unitybuildcount == nil then
-                count = math.floor(#cu.compilationunits[cfg] / 5)
-                count = math.min(count, 8) -- clamp it to 8 files as a maximum.
-                count = math.max(count, 1) -- make sure we don't choose 0 files.
+				count = math.floor(#cu.compilationunits[cfg] / 5)
+				count = math.min(count, 8) -- clamp it to 8 files as a maximum.
+				count = math.max(count, 1) -- make sure we don't choose 0 files.
 
-            -- the compilation unit count was specified for this project => use this count
-            --   directly, but also clamp it to the total number of source files so that
-            --   we don't end up with empty unity build files.
-            else
+			-- the compilation unit count was specified for this project => use this count
+			--   directly, but also clamp it to the total number of source files so that
+			--   we don't end up with empty unity build files.
+			else
 				count = math.min(#cu.compilationunits[cfg], prj.unitybuildcount)
-            end
+			end
 
 			unitybuildcount[cfg] = count
 			cu.debug_log("    adding "..count.." unity build files to the project.", prj)
 			for i = 1, count do
-                cu.debug_log("        "..i..") '"..path.join(cfg._compilationUnitDir, cu.getCompilationUnitName(cfg, i)).."'", prj)
+				cu.debug_log("        "..i..") '"..path.join(cfg._compilationUnitDir, cu.getCompilationUnitName(cfg, i)).."'", prj)
 				table.insert(cfg.files, path.join(cfg._compilationUnitDir, cu.getCompilationUnitName(cfg, i)))
 			end
 
@@ -159,18 +159,18 @@ function premake.extensions.compilationunit.customBakeFiles(base, prj)
 		return base(prj)
 	end
 
-    -- report that this project is building with a unity build.  Note that this will only print
-    -- for projects that have opted into unity builds _and_ the `--unity-build` command line
-    -- option was also used.
+	-- report that this project is building with a unity build.  Note that this will only print
+	-- for projects that have opted into unity builds _and_ the `--unity-build` command line
+	-- option was also used.
 	print("Unity build is enabled for the project '"..prj.name.."'.")
 
 	-- second step loop through the configs and generate the compilation units
-    cu.debug_log("    generating unity build files for the project '"..prj['name'].."':", prj)
+	cu.debug_log("    generating unity build files for the project '"..prj['name'].."':", prj)
 	for config, files in pairs(cu.compilationunits) do
 		cu.debug_log("        generating unity build files for the config '"..config['shortname'].."' {unitybuildcount['"..config['shortname'].."'] = "..unitybuildcount[config].."}", prj)
 		-- create the units
 		local units = {}
-        cu.debug_log("            building the unity build file lists:", prj)
+		cu.debug_log("            building the unity build file lists:", prj)
 		for i = 1, unitybuildcount[config] do
 			local content = "// use this symbol to conditionally include or exclude code that works fine when building a source\n"..
 							"// file directly, but causes problems when building under a unity build.\n"..
@@ -207,22 +207,22 @@ function premake.extensions.compilationunit.customBakeFiles(base, prj)
 
 		-- add files in the cpp unit
 		local index = 1
-        cu.debug_log("            generating the content for the unity build files:", prj)
+		cu.debug_log("            generating the content for the unity build files:", prj)
 		for _, filename in ipairs(files) do
 			-- compute the relative path of the original file, to add the #include statement
 			-- in the compilation unit
 			local relativefilename = path.getrelative(path.getdirectory(units[index].filename), path.getdirectory(filename))
 			relativefilename = path.join(relativefilename, path.getname(filename))
 			units[index].content = units[index].content .. "#include \"" .. relativefilename .. "\"\n"
-            cu.debug_log("                ".._..") added '"..relativefilename.."' at index "..index..".", prj)
+			cu.debug_log("                ".._..") added '"..relativefilename.."' at index "..index..".", prj)
 			index = (index % unitybuildcount[config]) + 1
 		end
 
 		-- write units
-        cu.debug_log("            writing the unity build files to disk:", prj)
+		cu.debug_log("            writing the unity build files to disk:", prj)
 		for _, unit in ipairs(units) do
 			-- get the content of the file, if it already exists
-            cu.debug_log("                ".._..") opening the file '"..unit.filename.."' to read its contents.", prj)
+			cu.debug_log("                ".._..") opening the file '"..unit.filename.."' to read its contents.", prj)
 			local file = io.open(unit.filename, "r")
 			local content = ""
 			if file ~= nil then
@@ -232,16 +232,16 @@ function premake.extensions.compilationunit.customBakeFiles(base, prj)
 
 			-- overwrite only if the content changed
 			if content ~= unit.content then
-                cu.debug_log("                    writing the new contents to '"..unit.filename.."'.", prj)
+				cu.debug_log("                    writing the new contents to '"..unit.filename.."'.", prj)
 				file = assert(io.open(unit.filename, "w"))
 				file:write(unit.content)
 				file:close()
 			end
 		end
-        cu.debug_log("        done generating unity build files for the config '"..config['shortname'].."'.", prj)
+		cu.debug_log("        done generating unity build files for the config '"..config['shortname'].."'.", prj)
 	end
 
-    cu.debug_log("done processing the project '"..prj['name'].."'!", prj)
+	cu.debug_log("done processing the project '"..prj['name'].."'!", prj)
 	return base(prj)
 end
 
@@ -280,7 +280,7 @@ function premake.extensions.compilationunit.customAddFileConfig(base, fcfg, cfg)
 
 	-- if a file will be included in the compilation units, disable it
 	if cu.isIncludedInCompilationUnit(cfg, filename) == true and cu.isCompilationUnit(cfg, filename) == false then
-        cu.debug_log("    excluding the file '"..filename.."' from the configuration '"..cfg['shortname'].."'.")
+		cu.debug_log("    excluding the file '"..filename.."' from the configuration '"..cfg['shortname'].."'.")
 		config.flags.ExcludeFromBuild = true
 	end
 
