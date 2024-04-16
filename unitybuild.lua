@@ -16,8 +16,8 @@ premake.extensions.compilationunit = {
 	-- these are private, do not touch
 	--
 	compilationunitname = "__unitybuild_file__",
-	compilationunits = {}
-
+	compilationunits = {},
+	cpucorecount = 0
 }
 
 -- Prints a single log message to `stdout`.  The message will only be output if the `--unity-log`
@@ -46,6 +46,69 @@ function premake.extensions.compilationunit.debug_log(msg, prj)
 	print("[unity] "..msg)
 end
 
+-- Attempts to retrieve the CPU core count from a system specific location.  This has support for
+-- Windows, Linux, and MacOS.  Note that finding this count on Linux requires the `nproc` command
+-- line tool to be present which is part of the `gnu coreutils` package.  If the CPU core count
+-- cannot be retrieved for any reason, a default value of 8 will be returned.
+--
+-- @param default_count:    The default CPU core count to return if the real value cannot be
+--                          retrieved for any reason.  This defaults to 8 if not provided.
+--
+-- @returns The retrieved CPU core count or the requested default count.
+function premake.extensions.compilationunit.getCpuCoreCount(default_count)
+	local cu = premake.extensions.compilationunit
+	local count = 0
+
+	if default_count == nil then
+		default_count = 8
+	end
+
+	-- Windows => use the `NUMBER_OF_PROCESSORS` envvar.
+	if os.target() == "windows" then
+		count = os.getenv("NUMBER_OF_PROCESSORS")
+
+		-- convert the value to a number since it would have been read as a string here.
+		count = tonumber(count)
+
+	-- other (assume another flavour of unix such as Linux or MacOS) => use a shell command.
+	else
+		local command = ""
+		local filename = os.tmpname()
+		local result
+
+		-- MacOS => use the `sysctl -n hw.ncpu` command.
+		if os.target() == "macosx" then
+			command = "sysctl -n hw.ncpu"
+
+		-- other => use the `nproc` command.
+		else
+			command = "nproc"
+		end
+
+		result = os.execute(command.." > "..filename)
+
+		if result == nil or not result then
+			cu.debug_log("failed to execute the command '"..command.."' {result = "..tostring(result).."}")
+
+		else
+			for line in io.lines(filename) do
+				count = tonumber(line)
+				break
+			end
+
+			-- delete the temporary file.
+			os.remove(filename)
+		end
+	end
+
+	if count == 0 then
+		cu.debug_log("failed to retrieve the CPU core count.  Defaulting to "..tostring(default_count)..".")
+		count = default_count
+	end
+
+	return count
+end
+
 --
 -- This method overrides premake.oven.bakeFiles method. We use it to add the compilation units
 -- to the project, and then generate and fill them.
@@ -57,7 +120,7 @@ function premake.extensions.compilationunit.customBakeFiles(base, prj)
 	-- enabled on the command line with the `--unity-build` option.
 	local unity_build_enabled = prj.unitybuildenabled and (_OPTIONS['unity-build'] ~= nil)
 	local cu = premake.extensions.compilationunit
-    local project_name = prj['name']
+	local project_name = prj['name']
 
 	-- do nothing for external projects
 	if prj.external == true then
@@ -67,6 +130,13 @@ function premake.extensions.compilationunit.customBakeFiles(base, prj)
 	-- make sure this local var stays a boolean in all cases.
 	if unity_build_enabled == nil then
 		unity_build_enabled = false
+	end
+
+	-- retrieve the CPU core count so it can be used as a default limit for the number of unity
+	-- build failes to use in a project.
+	if cu.cpucorecount == 0 and unity_build_enabled then
+		cu.cpucorecount = premake.extensions.compilationunit.getCpuCoreCount(8)
+		cu.debug_log("found the CPU core count "..tostring(cu.cpucorecount)..".", prj)
 	end
 
 	local project = premake.project
@@ -88,7 +158,7 @@ function premake.extensions.compilationunit.customBakeFiles(base, prj)
 	cu.debug_log("processing the unity build for the project '"..project_name.."'.", prj)
 	cu.debug_log("unity builds are "..(unity_build_enabled and "ENABLED" or "DISABLED").." for the project '"..project_name.."'.", prj)
 	for cfg in project.eachconfig(prj) do
-        local config_name = cfg.shortname
+		local config_name = cfg.shortname
 
 		cu.debug_log("    processing the unity build for the config '"..cfg.shortname.."'.", prj)
 
@@ -148,11 +218,12 @@ function premake.extensions.compilationunit.customBakeFiles(base, prj)
 			-- the compilation unit count was not specified for this project => attempt to
 			--   calculate a good count given how many eligible source files are present.
 			--   We'll try to make sure there are at least 5 source files built in each
-			--   unity build file, but we'll also cap it at 8 files.  If there are fewer
-			--   than 5 source files in the project, this will simply be clamped to 1.
+			--   unity build file, but we'll also cap it so that the number of files matches
+			--   the CPU core count.  If there are fewer than 5 source files in the project,
+			--   this will simply be clamped to 1.
 			if prj.unitybuildcount == nil then
 				count = math.floor(#cu.compilationunits[project_name][cfg] / 5)
-				count = math.min(count, 8) -- clamp it to 8 files as a maximum.  FIXME!! this should clamp to the CPU core count instead.
+				count = math.min(count, cu.cpucorecount) -- clamp it to the number of CPU cores as a maximum.
 				count = math.max(count, 1) -- make sure we don't choose 0 files.
 
 			-- the compilation unit count was specified for this project => use this count
